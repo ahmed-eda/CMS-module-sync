@@ -1,0 +1,10 @@
+{
+  "name": "CMS-module",
+  "description": "Scalable .NET Core messaging system for internal and external communication using Clean Architecture and SOLID principles.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
