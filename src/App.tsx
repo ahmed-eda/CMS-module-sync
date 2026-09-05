@@ -445,7 +445,10 @@ function AppContent() {
           ) : activeSection === 'sites' ? (
             <SitesDirectoryView locale={session.locale} />
           ) : activeSection === 'dashboard' ? (
-            <FollowUpReportsView locale={session.locale} />
+            <FollowUpReportsView
+              locale={session.locale}
+              onOpenDetails={item => setDetailsItem(item)}
+            />
           ) : activeSection === 'reports' ? (
             <AdvancedSearchView onOpenDetails={item => setDetailsItem(item)} locale={session.locale} />
           ) : activeSection === 'admin' ? (
