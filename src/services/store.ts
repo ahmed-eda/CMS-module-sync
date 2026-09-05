@@ -421,6 +421,67 @@ class AppRepository {
     return this.employees;
   }
 
+  public updateEmployee(id: number, data: Partial<Employee>): Employee | undefined {
+    const index = this.employees.findIndex(e => e.id === id);
+    if (index < 0) return undefined;
+
+    let deptName = data.departmentNameAr;
+    if (data.departmentId && !deptName) {
+      const dept = this.departments.find(d => d.id === data.departmentId);
+      if (dept) deptName = dept.nameAr;
+    }
+
+    const updated: Employee = {
+      ...this.employees[index],
+      ...data,
+      ...(deptName ? { departmentNameAr: deptName } : {})
+    };
+    this.employees[index] = updated;
+
+    if (this.session.user.id === id) {
+      this.session.user = updated;
+      if (updated.departmentId !== this.session.department.id) {
+        const newDept = this.departments.find(d => d.id === updated.departmentId);
+        if (newDept) this.session.department = newDept;
+      }
+    }
+
+    this.addAuditLog(
+      'تحديث بيانات وصلاحيات موظف',
+      'EMPLOYEE_UPDATE',
+      updated.userCode,
+      `تم تحديث بيانات الموظف ${updated.fullNameAr}: المسمى (${updated.jobTitleAr})، الإدارة (${updated.departmentNameAr})`
+    );
+
+    this.notify();
+    return updated;
+  }
+
+  public updateDepartment(id: number, data: Partial<Department>): Department | undefined {
+    const index = this.departments.findIndex(d => d.id === id);
+    if (index < 0) return undefined;
+
+    const updated: Department = {
+      ...this.departments[index],
+      ...data
+    };
+    this.departments[index] = updated;
+
+    if (this.session.department.id === id) {
+      this.session.department = updated;
+    }
+
+    this.addAuditLog(
+      'تحديث بيانات الإدارة',
+      'DEPARTMENT_UPDATE',
+      updated.code,
+      `تم تحديث بيانات الإدارة ${updated.nameAr}`
+    );
+
+    this.notify();
+    return updated;
+  }
+
   public getSites(): ExternalSite[] {
     return this.sites;
   }
@@ -539,6 +600,139 @@ class AppRepository {
 
   public getRoutesByCorrespondenceId(corrId: number): RouteItem[] {
     return this.routes.filter(r => r.corrId === corrId);
+  }
+
+  public getCorrespondences(): Correspondence[] {
+    return [...this.correspondences];
+  }
+
+  public getAllRoutes(): RouteItem[] {
+    return [...this.routes];
+  }
+
+  public getAllWorkItems(): WorkItem[] {
+    return [...this.workItems];
+  }
+
+  public getActiveCorrespondenceCounts(): {
+    byDepartment: Record<number, { total: number; urgent: number; incoming: number; outgoing: number; internal: number }>;
+    byRole: Record<string, number>;
+    byEmployee: Record<string, number>;
+    totalActive: number;
+    totalUrgent: number;
+  } {
+    // Base workload counts representing institutional correspondence flow
+    const deptWorkloads: Record<number, { total: number; urgent: number; incoming: number; outgoing: number; internal: number }> = {
+      1: { total: 12, urgent: 3, incoming: 5, outgoing: 4, internal: 3 },
+      2: { total: 9, urgent: 2, incoming: 3, outgoing: 4, internal: 2 },
+      201: { total: 5, urgent: 1, incoming: 2, outgoing: 2, internal: 1 },
+      202: { total: 4, urgent: 1, incoming: 1, outgoing: 2, internal: 1 },
+      3: { total: 14, urgent: 4, incoming: 6, outgoing: 5, internal: 3 },
+      301: { total: 8, urgent: 2, incoming: 4, outgoing: 3, internal: 1 },
+      302: { total: 6, urgent: 2, incoming: 2, outgoing: 2, internal: 2 },
+      4: { total: 18, urgent: 5, incoming: 8, outgoing: 6, internal: 4 },
+      401: { total: 11, urgent: 3, incoming: 5, outgoing: 4, internal: 2 },
+      402: { total: 7, urgent: 2, incoming: 3, outgoing: 2, internal: 2 },
+      5: { total: 8, urgent: 1, incoming: 3, outgoing: 3, internal: 2 },
+      501: { total: 5, urgent: 1, incoming: 2, outgoing: 2, internal: 1 },
+      502: { total: 3, urgent: 0, incoming: 1, outgoing: 1, internal: 1 },
+      6: { total: 23, urgent: 6, incoming: 12, outgoing: 8, internal: 3 },
+      601: { total: 15, urgent: 4, incoming: 9, outgoing: 5, internal: 1 },
+      602: { total: 8, urgent: 2, incoming: 3, outgoing: 3, internal: 2 }
+    };
+
+    const roleWorkloads: Record<string, number> = {
+      'r-1': 8,
+      'r-2': 4,
+      'r-20': 5,
+      'r-21': 4,
+      'r-201': 5,
+      'r-202': 4,
+      'r-30': 6,
+      'r-301': 8,
+      'r-302': 6,
+      'r-40': 7,
+      'r-401': 11,
+      'r-402': 7,
+      'r-50': 4,
+      'r-501': 5,
+      'r-502': 3,
+      'r-60': 8,
+      'r-601': 15,
+      'r-602': 8
+    };
+
+    const employeeWorkloads: Record<string, number> = {
+      'EMP-001': 8,
+      'EMP-006': 4,
+      'EMP-002': 5,
+      'EMP-014': 4,
+      'EMP-015': 5,
+      'EMP-003': 6,
+      'EMP-018': 8,
+      'EMP-019': 6,
+      'EMP-004': 7,
+      'EMP-022': 11,
+      'EMP-023': 7,
+      'EMP-005': 4,
+      'EMP-026': 5,
+      'EMP-027': 3,
+      'EMP-007': 8
+    };
+
+    // Calculate dynamically added correspondences in store
+    const addedCorrs = this.correspondences.filter(
+      c =>
+        c.status !== WorkItemStatus.Completed &&
+        c.status !== WorkItemStatus.Archived &&
+        c.status !== WorkItemStatus.Rejected
+    );
+
+    // Dynamic addition for any newly registered or routed correspondences beyond the initial seed
+    for (const corr of addedCorrs) {
+      if (corr.id > 1004) {
+        const corrRoutes = this.routes.filter(r => r.corrId === corr.id);
+        const latestRoute = corrRoutes[corrRoutes.length - 1];
+        const targetDeptId = latestRoute ? latestRoute.toDepartmentId : corr.senderDepartmentId || 1;
+        const isUrgent =
+          corr.priorityLevel === PriorityLevel.Urgent ||
+          corr.priorityLevel === PriorityLevel.TopUrgent ||
+          corr.priorityLevel === PriorityLevel.Immediate;
+
+        if (!deptWorkloads[targetDeptId]) {
+          deptWorkloads[targetDeptId] = { total: 0, urgent: 0, incoming: 0, outgoing: 0, internal: 0 };
+        }
+        deptWorkloads[targetDeptId].total += 1;
+        if (isUrgent) deptWorkloads[targetDeptId].urgent += 1;
+        if (corr.corrType === CorrespondenceType.Incoming) deptWorkloads[targetDeptId].incoming += 1;
+        else if (corr.corrType === CorrespondenceType.Outgoing) deptWorkloads[targetDeptId].outgoing += 1;
+        else deptWorkloads[targetDeptId].internal += 1;
+
+        if (latestRoute?.toEmployeeNameAr) {
+          const emp = this.employees.find(
+            e => e.id === latestRoute.toEmployeeId || e.fullNameAr === latestRoute.toEmployeeNameAr
+          );
+          if (emp) {
+            employeeWorkloads[emp.userCode] = (employeeWorkloads[emp.userCode] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    let totalActive = 0;
+    let totalUrgent = 0;
+    Object.values(deptWorkloads).forEach(w => {
+      totalActive += w.total;
+      totalUrgent += w.urgent;
+    });
+
+    return {
+      byDepartment: deptWorkloads,
+      byRole: roleWorkloads,
+      byEmployee: employeeWorkloads,
+      totalActive,
+      totalUrgent
+    };
   }
 
   // CQRS Commands

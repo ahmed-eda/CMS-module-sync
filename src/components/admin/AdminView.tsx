@@ -5,12 +5,15 @@ import {
   Activity,
   Key,
   Building,
+  Building2,
   CheckCircle2,
   Lock,
   FileCode2,
-  Database
+  Database,
+  Network
 } from 'lucide-react';
 import { appRepository } from '../../services/store';
+import { OrgHierarchyView } from './OrgHierarchyView';
 
 interface AdminViewProps {
   locale: 'ar' | 'en';
@@ -18,7 +21,7 @@ interface AdminViewProps {
 
 export const AdminView: React.FC<AdminViewProps> = ({ locale }) => {
   const isAr = locale === 'ar';
-  const [activeSubTab, setActiveSubTab] = useState<'employees' | 'audit' | 'security'>('employees');
+  const [activeSubTab, setActiveSubTab] = useState<'structure' | 'employees' | 'audit' | 'security'>('structure');
 
   const employees = appRepository.getEmployees();
   const departments = appRepository.getDepartments();
@@ -75,10 +78,24 @@ export const AdminView: React.FC<AdminViewProps> = ({ locale }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
         <button
+          id="btn-tab-admin-structure"
+          onClick={() => setActiveSubTab('structure')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeSubTab === 'structure'
+              ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          <span>{isAr ? 'الهيكل التنظيمي للمؤسسة' : 'Organizational Hierarchy'}</span>
+        </button>
+
+        <button
+          id="btn-tab-admin-employees"
           onClick={() => setActiveSubTab('employees')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
             activeSubTab === 'employees'
               ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -89,8 +106,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ locale }) => {
         </button>
 
         <button
+          id="btn-tab-admin-security"
+          onClick={() => setActiveSubTab('security')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+            activeSubTab === 'security'
+              ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
+          }`}
+        >
+          <Key className="w-4 h-4" />
+          <span>{isAr ? 'مصفوفة درجات السرية والتفويض' : 'Security Matrix'}</span>
+        </button>
+
+        <button
+          id="btn-tab-admin-audit"
           onClick={() => setActiveSubTab('audit')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
             activeSubTab === 'audit'
               ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-xs'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
@@ -99,21 +130,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ locale }) => {
           <Activity className="w-4 h-4" />
           <span>{isAr ? 'سجل التدقيق الأمني (Audit Logs)' : 'Audit Trail'}</span>
         </button>
-
-        <button
-          onClick={() => setActiveSubTab('security')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-            activeSubTab === 'security'
-              ? 'bg-indigo-600 dark:bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Key className="w-4 h-4" />
-          <span>{isAr ? 'مصفوفة درجات السرية والتفويض' : 'Security Clearance Matrix'}</span>
-        </button>
       </div>
 
       {/* Subtab Content */}
+      {activeSubTab === 'structure' && (
+        <OrgHierarchyView locale={locale} />
+      )}
+
       {activeSubTab === 'employees' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
